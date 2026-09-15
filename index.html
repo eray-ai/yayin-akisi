@@ -164,7 +164,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915110303";
+const SURUM = "20260915110933";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk", K_ACIK = "akis-acik-haftalar";
@@ -296,11 +296,28 @@ async function yokla(){
   }
 }
 
+function tazeYukle(neden){
+  let son = 0;
+  try { son = +sessionStorage.getItem("akis-taze") || 0; } catch {}
+  if (Date.now() - son < 30000) return false;
+  try { sessionStorage.setItem("akis-taze", Date.now()); } catch {}
+  console.warn("Sayfa yenileniyor:", neden);
+  location.replace(location.pathname + "?v=" + Date.now());
+  return true;
+}
+
 async function giris(deneme){
   const r = await rpc("akis_oku", { sifre: deneme });
   sifre = deneme; depo(K_SIFRE, deneme);
-  sunucu = r.veri; surum = r.surum; yeniden(); ciz();
+  sunucu = r.veri; surum = r.surum;
+  try { yeniden(); ciz(); }
+  catch (hata) { const e = new Error("cizim"); e.kod = "cizim"; e.asil = hata; throw e; }
   if (kuyruk().length) gonder();
+}
+function hataMesaji(err){
+  if (err.kod === "sifre_yanlis") return "Şifre yanlış.";
+  if (err.kod === "cizim") return "Sayfa açılırken bir sorun oldu. Sayfayı yenile (bilgisayarda Cmd+R, telefonda aşağı çek).";
+  return "Bağlanamadı, interneti kontrol edip tekrar dene.";
 }
 function cikis(mesaj){
   sifre = ""; depo(K_SIFRE, null); sunucu = null; S = null; form = null;
@@ -581,7 +598,7 @@ app.addEventListener("submit", async e => {
     if (!deneme) return;
     cizGiris(true);
     try { girisHata = ""; await giris(deneme); }
-    catch (err) { girisHata = err.kod === "sifre_yanlis" ? "Şifre yanlış." : "Bağlanamadı, interneti kontrol edip tekrar dene."; cizGiris(); }
+    catch (err) { girisHata = hataMesaji(err); if (err.kod === "cizim" && tazeYukle(err.asil)) return; cizGiris(); }
     return;
   }
   if (e.target.id === "isform") return isKaydet();
@@ -642,9 +659,11 @@ async function guncelMi(){
     if (!r.ok) return;
     const yeni = (await r.text()).trim();
     if (!yeni || yeni === SURUM) return;
-    let deneme = 0;
-    try { deneme = +sessionStorage.getItem("akis-yenile-" + yeni) || 0; sessionStorage.setItem("akis-yenile-" + yeni, deneme + 1); } catch {}
-    if (deneme < 3) location.replace(location.pathname + "?v=" + encodeURIComponent(yeni) + "-" + Date.now());
+    let son = 0;
+    try { son = +sessionStorage.getItem("akis-yenile") || 0; } catch {}
+    if (Date.now() - son < 45000) return;
+    try { sessionStorage.setItem("akis-yenile", Date.now()); } catch {}
+    location.replace(location.pathname + "?v=" + encodeURIComponent(yeni) + "-" + Date.now());
   } catch {}
 }
 if (new URLSearchParams(location.search).has("v")) history.replaceState(null, "", location.pathname);
@@ -658,8 +677,9 @@ guncelMi();
 if (sifre) {
   app.innerHTML = `<div class="giris"><span class="kas">Yayın akışı</span><p>Açılıyor…</p></div>`;
   giris(sifre).catch(err => {
-    if (err.kod === "sifre_yanlis") cikis("Şifre değişmiş, yenisini gir.");
-    else { girisHata = "Bağlanamadı, interneti kontrol edip tekrar dene."; cizGiris(); }
+    if (err.kod === "sifre_yanlis") return cikis("Şifre değişmiş, yenisini gir.");
+    if (err.kod === "cizim" && tazeYukle(err.asil)) return;
+    girisHata = hataMesaji(err); cizGiris();
   });
 } else cizGiris();
 </script>
