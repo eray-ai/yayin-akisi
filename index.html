@@ -130,7 +130,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915104931";
+const SURUM = "20260915105011";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk";
@@ -484,7 +484,10 @@ async function guncelMi(){
     const r = await fetch("surum.txt?t=" + Date.now(), { cache: "no-store" });
     if (!r.ok) return;
     const yeni = (await r.text()).trim();
-    if (yeni && yeni !== SURUM) location.replace(location.pathname + "?v=" + encodeURIComponent(yeni));
+    if (!yeni || yeni === SURUM) return;
+    let deneme = 0;
+    try { deneme = +sessionStorage.getItem("akis-yenile-" + yeni) || 0; sessionStorage.setItem("akis-yenile-" + yeni, deneme + 1); } catch {}
+    if (deneme < 3) location.replace(location.pathname + "?v=" + encodeURIComponent(yeni) + "-" + Date.now());
   } catch {}
 }
 if (new URLSearchParams(location.search).has("v")) history.replaceState(null, "", location.pathname);
