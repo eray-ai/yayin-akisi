@@ -142,6 +142,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 .hafta:first-child{border-top:0}
 .hafta-bas{appearance:none;background:none;border:0;width:100%;display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:baseline;padding:15px 0;text-align:left;cursor:pointer;touch-action:manipulation}
 .okisaret{display:inline-block;width:7px;height:7px;border-right:1.5px solid var(--soluk);border-bottom:1.5px solid var(--soluk);transform:translateY(-2px) rotate(-45deg);transition:transform .15s}
+.hafta-bas:disabled{cursor:default;color:inherit;opacity:1}
 .hafta.acik .okisaret{transform:translateY(-4px) rotate(45deg)}
 .hafta-ad{font-size:16px;font-weight:500;display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
 .hafta-ad .simdi{font-size:12px;font-weight:600;color:var(--kiremit);letter-spacing:.04em;text-transform:uppercase}
@@ -164,7 +165,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915111554";
+const SURUM = "20260915112441";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk", K_ACIK = "akis-acik-haftalar";
@@ -382,6 +383,11 @@ function isSatiri(i){
 }
 
 function gunlerHTML(isler){
+  const tarihsiz = isler.filter(i => !i.tarih);
+  if (tarihsiz.length) {
+    return `<div class="isler">${[...tarihsiz.filter(i => !i.done), ...tarihsiz.filter(i => i.done)].map(isSatiri).join("")}</div>`
+      + gunlerHTML(isler.filter(i => i.tarih));
+  }
   return gunGruplari(isler).map(g => {
     const e = gunEtiket(g), simdi = bugunIcinde(g.tarih, g.bitis);
     return `<div class="gun ${simdi ? "bugun" : ""}">
@@ -399,17 +405,17 @@ function ozet(isler){
 }
 
 function haftaHTML(anahtar, ad, isler, simdi, varsayilanTarih){
-  const ac = acik.has(anahtar);
+  const ac = simdi || acik.has(anahtar);
   const ekleForm = form?.tur === "is" && !form.id && form.hafta === anahtar;
   return `<div class="hafta ${ac ? "acik" : ""}">
-    <button type="button" class="hafta-bas" data-hafta="${anahtar}" aria-expanded="${ac}">
-      <span class="okisaret" aria-hidden="true"></span>
+    <button type="button" class="hafta-bas" ${simdi ? "disabled" : `data-hafta="${anahtar}"`} aria-expanded="${ac}">
+      <span class="${simdi ? "" : "okisaret"}" aria-hidden="true"></span>
       <span class="hafta-ad">${esc(ad)}${simdi ? `<span class="simdi">Bu hafta</span>` : ""}</span>
       <span class="hafta-ozet mono">${ozet(isler)}</span>
     </button>
     ${ac ? `<div class="hafta-ic">
       ${isler.length ? gunlerHTML(isler) : `<div class="bos">Bu hafta için iş yok.</div>`}
-      ${ekleForm ? formIs() : `<button type="button" class="ekle" data-eylem="isekle" data-hafta="${anahtar}" data-tarih="${varsayilanTarih || ""}">+ İş ekle</button>`}
+      ${ekleForm ? formIs() : `<button type="button" class="ekle" data-eylem="isekle" data-hedef="${anahtar}" data-tarih="${varsayilanTarih || ""}">+ İş ekle</button>`}
     </div>` : ""}
   </div>`;
 }
@@ -646,7 +652,7 @@ app.addEventListener("click", e => {
     const d = ey.dataset;
     bilgi = null;
     if (d.eylem === "isekle") {
-      form = { tur: "is", id: null, hafta: ey.closest(".hafta").querySelector("[data-hafta]").dataset.hafta, tarih: d.tarih || null };
+      form = { tur: "is", id: null, hafta: d.hedef, tarih: d.tarih || null };
       ciz(); document.getElementById("f-baslik")?.focus();
     }
     else if (d.eylem === "duzenle") { form = { tur: "is", id: d.id }; ciz(); document.getElementById("f-baslik")?.focus(); }
