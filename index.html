@@ -52,10 +52,10 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 
 /* beklenenler */
 .liste{display:grid}
-.bk{display:grid;grid-template-columns:44px 1fr;align-items:start;border-top:1px solid var(--cizgi)}
+.bk{display:grid;grid-template-columns:44px 1fr auto;align-items:start;border-top:1px solid var(--cizgi)}
 .bk:first-child{border-top:0}
 .bk .tik{appearance:none;background:none;border:0;padding:0;margin-left:-11px;cursor:pointer;display:grid;place-items:center;min-height:48px;touch-action:manipulation}
-.bk .bkmetin{appearance:none;background:none;border:0;padding:12px 0;text-align:left;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;min-width:0;touch-action:manipulation}
+.bk .bkmetin{padding:12px 0;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;min-width:0}
 .bk .tik span{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--amber)}
 .bk.geldi .tik span{background:var(--yesil);border-color:var(--yesil)}
 .bk .kim{font-weight:500}
@@ -72,16 +72,17 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 .tarih .t{font-size:15px}
 .gun.bugun .g{color:var(--kiremit);font-weight:600}
 .isler{display:grid;gap:12px}
-.is{display:grid;grid-template-columns:44px 1fr;align-items:start}
+.is{display:grid;grid-template-columns:44px 1fr auto;align-items:start}
 .tikalan{display:grid;place-items:start center;margin:-10px 0 -10px -13px;padding:12px 0;cursor:pointer;touch-action:manipulation}
-.metin{touch-action:manipulation}
 .is input{appearance:none;margin:0;width:20px;height:20px;border:1.5px solid var(--soluk);border-radius:50%;cursor:pointer;display:grid;place-content:center;background:transparent}
 .is input::after{content:"";width:8px;height:4px;border-left:1.5px solid var(--zemin);border-bottom:1.5px solid var(--zemin);transform:rotate(-45deg) translate(1px,-1px);opacity:0}
 .is input:checked{background:var(--yesil);border-color:var(--yesil)}
 .is input:checked::after{opacity:1}
 .is input:disabled{cursor:default}
-.metin{appearance:none;background:none;border:0;padding:0;text-align:left;display:grid;gap:2px;min-width:0;cursor:pointer}
-.metin:disabled{cursor:default}
+.metin{display:grid;gap:2px;min-width:0}
+.duzenle{appearance:none;background:none;border:0;margin:-8px -8px 0 6px;padding:8px;font-size:12.5px;color:var(--soluk);cursor:pointer;touch-action:manipulation;text-decoration:underline;text-decoration-color:var(--cizgi);text-underline-offset:3px}
+.duzenle:hover{color:var(--murekkep);text-decoration-color:currentColor}
+.bk .duzenle{margin-top:4px}
 .baslik{font-weight:500;line-height:1.4}
 .detay{color:var(--soluk);font-size:14px;max-width:60ch}
 .etiket{font-size:12.5px;color:var(--soluk)}
@@ -130,7 +131,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915105011";
+const SURUM = "20260915105626";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk";
@@ -285,9 +286,8 @@ function isSatiri(i){
   if (form?.tur === "is" && form.id === i.id) return formIs();
   return `<div class="is ${i.done ? "bitti" : ""}">
     <label class="tikalan"><input type="checkbox" id="is-${i.id}" data-is="${i.id}" ${i.done ? "checked" : ""} aria-label="${esc(i.baslik)} bitti"></label>
-    <button type="button" class="metin" data-eylem="duzenle" data-id="${i.id}">
-      <span class="baslik">${esc(i.baslik)}</span>${i.detay ? `<span class="detay">${esc(i.detay)}</span>` : ""}${etiketler(i)}
-    </button>
+    <div class="metin"><span class="baslik">${esc(i.baslik)}</span>${i.detay ? `<span class="detay">${esc(i.detay)}</span>` : ""}${etiketler(i)}</div>
+    <button type="button" class="duzenle" data-eylem="duzenle" data-id="${i.id}" aria-label="${esc(i.baslik)} işini düzenle">düzenle</button>
   </div>`;
 }
 
@@ -372,11 +372,12 @@ function ciz(){
     <div class="liste">${S.bekleyenler.map(b => `
       ${form?.tur === "bk" && form.id === b.id ? formBk() : `<div class="bk ${b.geldi ? "geldi" : ""}">
         <button type="button" class="tik" data-bk="${b.id}" id="bk-${b.id}" aria-pressed="${b.geldi}" aria-label="${esc(b.kim)} geldi"><span></span></button>
-        <button type="button" class="bkmetin" data-eylem="bkduzenle" data-id="${b.id}">
+        <div class="bkmetin">
           <span class="kim">${esc(b.kim)}</span>
           <span class="son mono">${b.geldi ? "geldi" : esc(b.son)}</span>
           ${b.ne ? `<span class="ne">${esc(b.ne)}</span>` : ""}
-        </button>
+        </div>
+        <button type="button" class="duzenle" data-eylem="bkduzenle" data-id="${b.id}" aria-label="${esc(b.kim)} satırını düzenle">düzenle</button>
       </div>`}`).join("")}
     </div>
     ${form?.tur === "bk" && !form.id ? formBk() : `<button type="button" class="ekle" data-eylem="bkekle">+ Beklenen ekle</button>`}
