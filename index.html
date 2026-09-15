@@ -164,7 +164,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915110933";
+const SURUM = "20260915111554";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk", K_ACIK = "akis-acik-haftalar";
@@ -251,6 +251,7 @@ const bugunIcinde = (bas, bit) => { const t = bugun(); return bas <= t && t <= (
 
 /* ---- veri: sunucudaki hâl + henüz gitmemiş değişiklikler ---- */
 function uygula(d, op){
+  if (!op || typeof op.t !== "string" || !op.id) return;
   const liste = op.t.startsWith("bk") ? "bekleyenler" : "isler";
   if (op.t === "is" || op.t === "bk") {
     const k = d[liste].findIndex(x => x.id === op.id);
@@ -296,6 +297,14 @@ async function yokla(){
   }
 }
 
+function hataBildir(hata, yer){
+  let q = null; try { q = JSON.parse(depo(K_KUYRUK) || "null"); } catch { q = depo(K_KUYRUK); }
+  rpc("akis_hata_yaz", { mesaj: `${yer}: ${hata?.message || hata}`, ayrinti: {
+    stack: String(hata?.stack || "").slice(0, 3000), ua: navigator.userAgent, surum: SURUM, ekran: innerWidth,
+    kuyruk: q, acik: depo(K_ACIK), secAy, veriAnahtarlari: sunucu ? Object.keys(sunucu) : null,
+  } }).catch(() => {});
+}
+
 function tazeYukle(neden){
   let son = 0;
   try { son = +sessionStorage.getItem("akis-taze") || 0; } catch {}
@@ -311,7 +320,12 @@ async function giris(deneme){
   sifre = deneme; depo(K_SIFRE, deneme);
   sunucu = r.veri; surum = r.surum;
   try { yeniden(); ciz(); }
-  catch (hata) { const e = new Error("cizim"); e.kod = "cizim"; e.asil = hata; throw e; }
+  catch (hata) {
+    hataBildir(hata, "acilis");
+    // Bu cihazda kalmış yerel kayıtlar (açık haftalar, gönderilmemiş değişiklikler) bozuksa onlarsız aç.
+    try { acik = new Set(); depo(K_ACIK, null); kuyrukYaz([]); secAy = ayAnahtar(new Date()); form = null; S = kopya(sunucu); ciz(); return; }
+    catch (hata2) { hataBildir(hata2, "yereller-temizlendi"); const e = new Error("cizim"); e.kod = "cizim"; e.asil = hata2; throw e; }
+  }
   if (kuyruk().length) gonder();
 }
 function hataMesaji(err){
