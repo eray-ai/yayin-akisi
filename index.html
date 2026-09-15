@@ -126,21 +126,55 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 .giris .birincil{padding:10px 14px;font-size:15px}
 .cikis{justify-self:start;appearance:none;background:none;border:0;padding:0;color:var(--soluk);font-size:13px;cursor:pointer;text-decoration:underline;text-decoration-color:var(--cizgi)}
 
+
+/* aylar */
+.aylar{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-inline:-20px;padding-inline:20px;-webkit-overflow-scrolling:touch}
+.aylar::-webkit-scrollbar{display:none}
+.ay{appearance:none;flex:none;border:1px solid transparent;background:none;border-radius:999px;padding:6px 13px;font-size:14px;color:var(--soluk);white-space:nowrap;cursor:pointer;touch-action:manipulation}
+.ay:hover{color:var(--murekkep)}
+.ay[aria-current="true"]{background:var(--yuzey);border-color:var(--cizgi);color:var(--murekkep);font-weight:600}
+.bilgi{font-size:13.5px;color:var(--soluk);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
+.bilgi button{appearance:none;background:none;border:0;padding:0;color:var(--murekkep);text-decoration:underline;cursor:pointer;font-size:13.5px}
+
+/* haftalar */
+.haftalar{display:grid}
+.hafta{border-top:1px solid var(--cizgi)}
+.hafta:first-child{border-top:0}
+.hafta-bas{appearance:none;background:none;border:0;width:100%;display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:baseline;padding:15px 0;text-align:left;cursor:pointer;touch-action:manipulation}
+.okisaret{display:inline-block;width:7px;height:7px;border-right:1.5px solid var(--soluk);border-bottom:1.5px solid var(--soluk);transform:translateY(-2px) rotate(-45deg);transition:transform .15s}
+.hafta.acik .okisaret{transform:translateY(-4px) rotate(45deg)}
+.hafta-ad{font-size:16px;font-weight:500;display:flex;flex-wrap:wrap;gap:2px 10px;align-items:baseline}
+.hafta-ad .simdi{font-size:12px;font-weight:600;color:var(--kiremit);letter-spacing:.04em;text-transform:uppercase}
+.hafta-ozet{font-size:13px;color:var(--soluk);white-space:nowrap}
+.hafta-ozet .acil{color:var(--kiremit)}
+.hafta-ic{padding:0 0 16px 26px}
+.hafta-ic .gun:first-child{border-top:0;padding-top:2px}
+.bos{color:var(--soluk);font-size:14px;padding:4px 0 2px}
+.devir{font-size:12.5px;color:var(--soluk);font-style:italic}
+.eylemler{display:grid;justify-items:end}
+.hizli{display:flex;flex-wrap:wrap;gap:6px}
+.hizli button{appearance:none;border:1px solid var(--cizgi);background:var(--zemin);border-radius:999px;padding:4px 11px;font-size:13.5px;color:var(--murekkep);cursor:pointer}
+.form input[type=date]{font:inherit;font-size:16px;color:var(--murekkep);background:var(--zemin);border:1px solid var(--cizgi);border-radius:7px;padding:7px 9px;width:100%;min-height:40px;text-transform:none;letter-spacing:0}
+.form .soru{font-size:14px;margin:0}
+@media (max-width:520px){ .hafta-ic{padding-left:0} }
+@media (prefers-reduced-motion:reduce){.okisaret{transition:none}}
+
 </style>
 </head>
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260915105626";
+const SURUM = "20260915110303";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
-const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk";
+const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk", K_ACIK = "akis-acik-haftalar";
 
 const app = document.getElementById("app");
 let sifre = depo(K_SIFRE) || "";
 let sunucu = null, surum = 0, S = null;
-let durum = "ok";          // ok | gonderiliyor | baglanti
-let gonderiliyor = false, form = null, gunSecenek = [], girisHata = "";
+let durum = "ok", gonderiliyor = false, form = null, girisHata = "", bilgi = null;
+let secAy = ayAnahtar(new Date());
+let acik = new Set((() => { try { return JSON.parse(depo(K_ACIK) || "[]"); } catch { return []; } })());
 
 function depo(k, v){
   try { if (v === undefined) return localStorage.getItem(k); v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {}
@@ -162,24 +196,58 @@ async function rpc(ad, govde){
 
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const yeniId = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-const sira = t => { const n = String(t).match(/\d+/); return n ? +n[0] : 999; };
 const kopya = o => JSON.parse(JSON.stringify(o));
 
-function bugunMu(t){
-  const d = new Date(), n = String(t).match(/\d+/g);
-  if (d.getFullYear() !== 2026 || d.getMonth() !== 8 || !n) return false;
-  return d.getDate() >= +n[0] && d.getDate() <= +(n[1] ?? n[0]);
+/* ---- tarih ---- */
+const AYLAR = ["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const GUNLER = ["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"];
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const tarihOku = t => { const [y, m, g] = t.split("-").map(Number); return new Date(y, m - 1, g); };
+const gunEkle = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+function ayAnahtar(d){ return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
+const ayAdi = k => { const [y, m] = k.split("-").map(Number); return `${AYLAR[m - 1]} ${y}`; };
+const ayKaydir = (k, n) => { const [y, m] = k.split("-").map(Number); return ayAnahtar(new Date(y, m - 1 + n, 1)); };
+const bugun = () => iso(new Date());
+/* Türkçe ek: ek("Eylül", "e") → "Eylül'e", ek("Mart", "den") → "Mart'tan" */
+function ek(kelime, tur){
+  const sesli = (kelime.match(/[aeıioöuü]/gi) || ["e"]).pop().toLowerCase();
+  const ince = "eiöü".includes(sesli);
+  if (tur === "e") return `${kelime}'${ince ? "e" : "a"}`;
+  const sert = /[çfhkpsşt]$/i.test(kelime);
+  return `${kelime}'${sert ? "t" : "d"}${ince ? "en" : "an"}`;
+}
+const kisaTarih = t => { const d = tarihOku(t); return `${d.getDate()} ${AYLAR[d.getMonth()]}`; };
+const pazartesi = d => gunEkle(d, -((d.getDay() + 6) % 7));
+const isAy = i => i.tarih ? i.tarih.slice(0, 7) : i.ay;
+
+function haftalar(ay){
+  const [y, m] = ay.split("-").map(Number);
+  const ilk = new Date(y, m - 1, 1), son = new Date(y, m, 0);
+  const liste = [];
+  for (let bas = pazartesi(ilk); bas <= son; bas = gunEkle(bas, 7)) {
+    const a = bas < ilk ? ilk : bas, b = gunEkle(bas, 6) > son ? son : gunEkle(bas, 6);
+    liste.push({ anahtar: iso(bas), bas: iso(a), bit: iso(b),
+      ad: a.getDate() === b.getDate() ? `${a.getDate()} ${AYLAR[m - 1]}` : `${a.getDate()}–${b.getDate()} ${AYLAR[m - 1]}` });
+  }
+  return liste;
 }
 
-function gunler(bolum){
+function gunGruplari(isler){
   const m = new Map();
-  for (const i of S.isler.filter(x => x.bolum === bolum)) {
-    const k = i.g + "|" + i.t;
-    if (!m.has(k)) m.set(k, { g: i.g, t: i.t, isler: [] });
+  for (const i of isler) {
+    const k = i.tarih + "|" + (i.bitis || "");
+    if (!m.has(k)) m.set(k, { tarih: i.tarih, bitis: i.bitis, isler: [] });
     m.get(k).isler.push(i);
   }
-  return [...m.values()].sort((a, b) => sira(a.t) - sira(b.t));
+  return [...m.values()].sort((a, b) => a.tarih < b.tarih ? -1 : a.tarih > b.tarih ? 1 : 0);
 }
+function gunEtiket(g){
+  const a = tarihOku(g.tarih);
+  if (!g.bitis || g.bitis === g.tarih) return { g: GUNLER[a.getDay()], t: String(a.getDate()) };
+  const b = tarihOku(g.bitis);
+  return { g: `${GUNLER[a.getDay()]}–${GUNLER[b.getDay()]}`, t: `${a.getDate()}–${b.getDate()}` };
+}
+const bugunIcinde = (bas, bit) => { const t = bugun(); return bas <= t && t <= (bit || bas); };
 
 /* ---- veri: sunucudaki hâl + henüz gitmemiş değişiklikler ---- */
 function uygula(d, op){
@@ -190,16 +258,8 @@ function uygula(d, op){
     else if (op.yeni) d[liste].push({ id: op.id, ...op.veri });
   } else d[liste] = d[liste].filter(x => x.id !== op.id);
 }
-function yeniden(){
-  S = kopya(sunucu);
-  for (const op of kuyruk()) uygula(S, op);
-}
-
-function degistir(op){
-  kuyrukYaz([...kuyruk(), op]);
-  uygula(S, op);
-  ciz(); gonder();
-}
+function yeniden(){ S = kopya(sunucu); for (const op of kuyruk()) uygula(S, op); }
+function degistir(op){ kuyrukYaz([...kuyruk(), op]); uygula(S, op); ciz(); gonder(); }
 
 async function gonder(){
   if (gonderiliyor) return;
@@ -242,7 +302,6 @@ async function giris(deneme){
   sunucu = r.veri; surum = r.surum; yeniden(); ciz();
   if (kuyruk().length) gonder();
 }
-
 function cikis(mesaj){
   sifre = ""; depo(K_SIFRE, null); sunucu = null; S = null; form = null;
   girisHata = mesaj || ""; cizGiris();
@@ -250,7 +309,6 @@ function cikis(mesaj){
 
 /* ---- çizim ---- */
 function cizGiris(bekliyor){
-  app.className = "sayfa";
   app.innerHTML = `<div class="giris">
     <span class="kas">Yayın akışı</span>
     <h1>Ekip şifresini gir</h1>
@@ -269,10 +327,7 @@ function durumYazi(){
   if (durum === "gonderiliyor") return `<span class="durum" id="durum" role="status">Kaydediliyor…</span>`;
   return `<span class="durum ok" id="durum" role="status">Kaydedildi</span>`;
 }
-function ustDurum(){
-  const el = document.getElementById("durum");
-  if (el) el.outerHTML = durumYazi();
-}
+function ustDurum(){ const el = document.getElementById("durum"); if (el) el.outerHTML = durumYazi(); }
 
 function etiketler(i){
   if (!i.etiket?.length) return "";
@@ -283,42 +338,134 @@ function etiketler(i){
 }
 
 function isSatiri(i){
-  if (form?.tur === "is" && form.id === i.id) return formIs();
+  if (form?.id === i.id && form.tur === "is") return formIs();
+  if (form?.id === i.id && form.tur === "devret") return formDevret(i);
   return `<div class="is ${i.done ? "bitti" : ""}">
     <label class="tikalan"><input type="checkbox" id="is-${i.id}" data-is="${i.id}" ${i.done ? "checked" : ""} aria-label="${esc(i.baslik)} bitti"></label>
-    <div class="metin"><span class="baslik">${esc(i.baslik)}</span>${i.detay ? `<span class="detay">${esc(i.detay)}</span>` : ""}${etiketler(i)}</div>
-    <button type="button" class="duzenle" data-eylem="duzenle" data-id="${i.id}" aria-label="${esc(i.baslik)} işini düzenle">düzenle</button>
+    <div class="metin"><span class="baslik">${esc(i.baslik)}</span>${i.detay ? `<span class="detay">${esc(i.detay)}</span>` : ""}${etiketler(i)}${i.devir && !i.done ? `<span class="devir">${esc(i.devir)} devredildi</span>` : ""}</div>
+    <div class="eylemler">
+      <button type="button" class="duzenle" data-eylem="duzenle" data-id="${i.id}" aria-label="${esc(i.baslik)} işini düzenle">düzenle</button>
+      ${i.done ? "" : `<button type="button" class="duzenle" data-eylem="devret" data-id="${i.id}" aria-label="${esc(i.baslik)} işini devret">devret</button>`}
+    </div>
   </div>`;
+}
+
+function gunlerHTML(isler){
+  return gunGruplari(isler).map(g => {
+    const e = gunEtiket(g), simdi = bugunIcinde(g.tarih, g.bitis);
+    return `<div class="gun ${simdi ? "bugun" : ""}">
+      <div class="tarih"><span class="g">${simdi && !g.bitis ? "Bugün" : esc(e.g)}</span><span class="t mono">${esc(e.t)}</span></div>
+      <div class="isler">${[...g.isler.filter(i => !i.done), ...g.isler.filter(i => i.done)].map(isSatiri).join("")}</div>
+    </div>`;
+  }).join("");
+}
+
+function ozet(isler){
+  const acikS = isler.filter(i => !i.done).length, biten = isler.length - acikS;
+  const acil = isler.filter(i => !i.done && i.acil).length;
+  if (!isler.length) return "iş yok";
+  return [acikS ? `${acikS} açık` : "", biten ? `${biten} bitti` : "", acil ? `<span class="acil">${acil} acil</span>` : ""].filter(Boolean).join(" · ");
+}
+
+function haftaHTML(anahtar, ad, isler, simdi, varsayilanTarih){
+  const ac = acik.has(anahtar);
+  const ekleForm = form?.tur === "is" && !form.id && form.hafta === anahtar;
+  return `<div class="hafta ${ac ? "acik" : ""}">
+    <button type="button" class="hafta-bas" data-hafta="${anahtar}" aria-expanded="${ac}">
+      <span class="okisaret" aria-hidden="true"></span>
+      <span class="hafta-ad">${esc(ad)}${simdi ? `<span class="simdi">Bu hafta</span>` : ""}</span>
+      <span class="hafta-ozet mono">${ozet(isler)}</span>
+    </button>
+    ${ac ? `<div class="hafta-ic">
+      ${isler.length ? gunlerHTML(isler) : `<div class="bos">Bu hafta için iş yok.</div>`}
+      ${ekleForm ? formIs() : `<button type="button" class="ekle" data-eylem="isekle" data-hafta="${anahtar}" data-tarih="${varsayilanTarih || ""}">+ İş ekle</button>`}
+    </div>` : ""}
+  </div>`;
+}
+
+function ayListesi(){
+  const k = new Set([ayAnahtar(new Date()), ayKaydir(ayAnahtar(new Date()), 1), secAy]);
+  for (const i of S.isler) k.add(isAy(i));
+  for (const b of S.bekleyenler) if (b.ay) k.add(b.ay);
+  const s = [...k].filter(Boolean).sort();
+  const liste = [];
+  for (let a = s[0]; a <= s[s.length - 1]; a = ayKaydir(a, 1)) liste.push(a);
+  return liste;
+}
+
+function ciz(){
+  if (!S) return cizGiris();
+  const ayIsler = S.isler.filter(i => isAy(i) === secAy);
+  const biten = ayIsler.filter(i => i.done).length, toplam = ayIsler.length;
+  const bk = S.bekleyenler.filter(b => (b.ay || secAy) === secAy);
+  const acikBk = bk.filter(b => !b.geldi).length;
+  const [y, m] = secAy.split("-").map(Number);
+
+  const hs = haftalar(secAy);
+  const haftaIcin = h => ayIsler.filter(i => i.tarih && i.tarih >= h.bas && i.tarih <= h.bit);
+  const tarihsiz = ayIsler.filter(i => !i.tarih);
+
+  app.innerHTML = `
+  <header>
+    <nav class="aylar" aria-label="Aylar">${ayListesi().map(a => `<button type="button" class="ay" data-ay="${a}" aria-current="${a === secAy}">${esc(ayAdi(a))}</button>`).join("")}</nav>
+    <h1>${esc(AYLAR[m - 1])} ${y}</h1>
+    <div class="meta">
+      <span><b class="mono">${biten}/${toplam}</b> iş bitti</span>
+      <span><b class="mono">${acikBk}</b> girdi bekleniyor</span>
+      ${durumYazi()}
+    </div>
+    <div class="cubuk" aria-hidden="true"><i style="width:${toplam ? biten / toplam * 100 : 0}%"></i></div>
+    ${bilgi ? `<div class="bilgi" role="status"><span>${esc(bilgi.metin)}</span>${bilgi.ay && bilgi.ay !== secAy ? `<button type="button" data-ay="${bilgi.ay}">${esc(ek(AYLAR[+bilgi.ay.slice(5) - 1], "e"))} git</button>` : ""}</div>` : ""}
+  </header>
+
+  <section>
+    <h2><span>Beklenenler</span></h2>
+    <div class="liste">${bk.map(b => `
+      ${form?.tur === "bk" && form.id === b.id ? formBk() : `<div class="bk ${b.geldi ? "geldi" : ""}">
+        <button type="button" class="tik" data-bk="${b.id}" id="bk-${b.id}" aria-pressed="${b.geldi}" aria-label="${esc(b.kim)} geldi"><span></span></button>
+        <div class="bkmetin">
+          <span class="kim">${esc(b.kim)}</span>
+          <span class="son mono">${b.geldi ? "geldi" : esc(b.son)}</span>
+          ${b.ne ? `<span class="ne">${esc(b.ne)}</span>` : ""}
+        </div>
+        <button type="button" class="duzenle" data-eylem="bkduzenle" data-id="${b.id}" aria-label="${esc(b.kim)} satırını düzenle">düzenle</button>
+      </div>`}`).join("")}
+    </div>
+    ${!bk.length && form?.tur !== "bk" ? `<div class="bos">Bu ay beklenen bir şey yok.</div>` : ""}
+    ${form?.tur === "bk" && !form.id ? formBk() : `<button type="button" class="ekle" data-eylem="bkekle">+ Beklenen ekle</button>`}
+  </section>
+
+  <section>
+    <h2><span>Haftalar</span><span class="mono">${esc(AYLAR[m - 1])}</span></h2>
+    <div class="haftalar">
+      ${hs.map(h => haftaHTML(h.anahtar, h.ad, haftaIcin(h), bugunIcinde(h.bas, h.bit),
+          bugunIcinde(h.bas, h.bit) ? bugun() : h.bas)).join("")}
+      ${haftaHTML("tarihsiz-" + secAy, "Tarihi belli değil", tarihsiz, false, "")}
+    </div>
+  </section>
+
+  <button type="button" class="cikis" data-eylem="cikis">Bu cihazda çıkış yap</button>`;
+
+  const tz = document.getElementById("f-tarihsiz");
+  if (tz) {
+    const esle = () => { document.getElementById("f-tarihler").hidden = tz.checked; };
+    tz.addEventListener("change", esle); esle();
+  }
+  document.querySelector('.ay[aria-current="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
 }
 
 function formIs(){
   const bul = form.id ? S.isler.find(x => x.id === form.id) : null;
-  const i = bul || { baslik: "", detay: "", etiket: [], acil: false, bekle: 0 };
-  gunSecenek = [];
-  let secili = null;
-  const gruplar = S.bolumler.map(b => {
-    const gs = gunler(b.id);
-    const ops = gs.map(g => {
-      const n = gunSecenek.push({ bolum: b.id, g: g.g, t: g.t }) - 1;
-      const sec = bul ? (bul.bolum === b.id && bul.g === g.g && bul.t === g.t)
-                      : (secili === null && b.id === form.bolum && (bugunMu(g.t) || g === gs[gs.length - 1]));
-      if (sec && secili === null) secili = n;
-      return `<option value="${n}" ${sec && secili === n ? "selected" : ""}>${esc(g.g)} ${esc(g.t)}</option>`;
-    }).join("");
-    const yeniSec = !bul && !gs.length && b.id === form.bolum;
-    return `<optgroup label="${esc(b.ad)}">${ops}<option value="yeni:${b.id}" ${yeniSec ? "selected" : ""}>+ Yeni gün</option></optgroup>`;
-  }).join("");
+  const i = bul || { baslik: "", detay: "", etiket: [], acil: false, bekle: 0, tarih: form.tarih || null, bitis: null };
   return `<form class="form" id="isform" autocomplete="off">
     <label class="alan">İş<input type="text" id="f-baslik" value="${esc(i.baslik)}" placeholder="Örn. Boombox story serisi"></label>
     <label class="alan">Not<textarea id="f-detay" placeholder="İsteğe bağlı">${esc(i.detay)}</textarea></label>
-    <div class="ikili">
-      <label class="alan">Gün<select id="f-gun">${gruplar}</select></label>
-      <label class="alan">Etiketler<input type="text" id="f-etiket" value="${esc((i.etiket || []).join(", "))}" placeholder="Virgülle: Bugün, Boombox"></label>
+    <div class="ikili" id="f-tarihler">
+      <label class="alan">Tarih<input type="date" id="f-tarih" value="${esc(i.tarih || "")}"></label>
+      <label class="alan">Bitiş (birkaç gün sürecekse)<input type="date" id="f-bitis" value="${esc(i.bitis || "")}"></label>
     </div>
-    <div class="ikili" id="f-yenigun" hidden>
-      <label class="alan">Gün adı<input type="text" id="f-gunad" placeholder="Örn. Cmt"></label>
-      <label class="alan">Tarih<input type="text" id="f-tarih" placeholder="Örn. 19 veya 22–23"></label>
-    </div>
+    <div class="secim"><label><input type="checkbox" id="f-tarihsiz" ${i.tarih ? "" : "checked"}> Tarihi belli değil</label></div>
+    <label class="alan">Etiketler<input type="text" id="f-etiket" value="${esc((i.etiket || []).join(", "))}" placeholder="Virgülle: Bugün, Boombox"></label>
     <div class="secim">
       <label><input type="checkbox" id="f-acil" ${i.acil ? "checked" : ""}> Acil</label>
       <label><input type="checkbox" id="f-bekle" ${i.bekle ? "checked" : ""}> Bir şey bekleniyor</label>
@@ -328,6 +475,28 @@ function formIs(){
       <button type="button" class="ikincil" data-eylem="vazgec">Vazgeç</button>
       <span class="uyari" id="f-uyari" role="alert"></span>
       ${bul ? `<button type="button" class="ikincil sil" data-eylem="issil">Sil</button>` : ""}
+    </div>
+  </form>`;
+}
+
+function formDevret(i){
+  const temel = i.tarih ? tarihOku(i.tarih) : new Date();
+  const oneri = iso(gunEkle(temel, 7));
+  const yarin = iso(gunEkle(new Date(), 1));
+  const gHafta = iso(gunEkle(pazartesi(new Date()), 7));
+  const gAy = ayKaydir(isAy(i) || secAy, 1) + "-01";
+  return `<form class="form" id="devretform" autocomplete="off">
+    <p class="soru"><b>${esc(i.baslik)}</b> hangi tarihe devredilsin?</p>
+    <div class="hizli">
+      <button type="button" data-devir-tarih="${yarin}">Yarın</button>
+      <button type="button" data-devir-tarih="${gHafta}">Gelecek hafta</button>
+      <button type="button" data-devir-tarih="${gAy}">${esc(AYLAR[tarihOku(gAy).getMonth()])} başı</button>
+    </div>
+    <label class="alan">Yeni tarih<input type="date" id="d-tarih" value="${oneri}"></label>
+    <div class="alt">
+      <button type="submit" class="birincil">Devret</button>
+      <button type="button" class="ikincil" data-eylem="vazgec">Vazgeç</button>
+      <span class="uyari" id="d-uyari" role="alert"></span>
     </div>
   </form>`;
 }
@@ -350,60 +519,9 @@ function formBk(){
   </form>`;
 }
 
-function ciz(){
-  if (!S) return cizGiris();
-  const biten = S.isler.filter(i => i.done).length, toplam = S.isler.length;
-  const acik = S.bekleyenler.filter(b => !b.geldi).length;
-  app.className = "sayfa";
-  app.innerHTML = `
-  <header>
-    <span class="kas">Yayın akışı</span>
-    <h1>Eylül 2026</h1>
-    <div class="meta">
-      <span><b class="mono">${biten}/${toplam}</b> iş bitti</span>
-      <span><b class="mono">${acik}</b> girdi bekleniyor</span>
-      ${durumYazi()}
-    </div>
-    <div class="cubuk" aria-hidden="true"><i style="width:${toplam ? biten / toplam * 100 : 0}%"></i></div>
-  </header>
-
-  <section>
-    <h2><span>Beklenenler</span></h2>
-    <div class="liste">${S.bekleyenler.map(b => `
-      ${form?.tur === "bk" && form.id === b.id ? formBk() : `<div class="bk ${b.geldi ? "geldi" : ""}">
-        <button type="button" class="tik" data-bk="${b.id}" id="bk-${b.id}" aria-pressed="${b.geldi}" aria-label="${esc(b.kim)} geldi"><span></span></button>
-        <div class="bkmetin">
-          <span class="kim">${esc(b.kim)}</span>
-          <span class="son mono">${b.geldi ? "geldi" : esc(b.son)}</span>
-          ${b.ne ? `<span class="ne">${esc(b.ne)}</span>` : ""}
-        </div>
-        <button type="button" class="duzenle" data-eylem="bkduzenle" data-id="${b.id}" aria-label="${esc(b.kim)} satırını düzenle">düzenle</button>
-      </div>`}`).join("")}
-    </div>
-    ${form?.tur === "bk" && !form.id ? formBk() : `<button type="button" class="ekle" data-eylem="bkekle">+ Beklenen ekle</button>`}
-  </section>
-
-  ${S.bolumler.map(b => `
-  <section>
-    <h2><span>${esc(b.ad)}</span><span class="mono">${esc(b.aralik)}</span></h2>
-    ${gunler(b.id).map(g => `
-      <div class="gun ${bugunMu(g.t) ? "bugun" : ""}">
-        <div class="tarih"><span class="g">${bugunMu(g.t) && !/–/.test(g.t) ? "Bugün" : esc(g.g)}</span><span class="t mono">${esc(g.t)}</span></div>
-        <div class="isler">${[...g.isler.filter(i => !i.done), ...g.isler.filter(i => i.done)].map(isSatiri).join("")}</div>
-      </div>`).join("")}
-    ${form?.tur === "is" && !form.id && form.bolum === b.id ? formIs() : `<button type="button" class="ekle" data-eylem="isekle" data-bolum="${b.id}">+ İş ekle</button>`}
-  </section>`).join("")}
-
-  <button type="button" class="cikis" data-eylem="cikis">Bu cihazda çıkış yap</button>`;
-
-  const sel = document.getElementById("f-gun");
-  if (sel) {
-    const esle = () => { document.getElementById("f-yenigun").hidden = !sel.value.startsWith("yeni:"); };
-    sel.addEventListener("change", esle); esle();
-  }
-}
-
 /* ---- eylemler ---- */
+function haftaAc(anahtar){ acik.add(anahtar); depo(K_ACIK, JSON.stringify([...acik].slice(-40))); }
+function haftaAnahtari(i){ return i.tarih ? iso(pazartesi(tarihOku(i.tarih))) : "tarihsiz-" + i.ay; }
 function formKapat(){ form = null; if (!kuyruk().length && !gonderiliyor) yeniden(); ciz(); }
 
 function isKaydet(){
@@ -411,23 +529,43 @@ function isKaydet(){
   const uyar = m => { document.getElementById("f-uyari").textContent = m; };
   const baslik = deger("f-baslik");
   if (!baslik) return uyar("İşin adını yaz.");
-  const sv = document.getElementById("f-gun").value;
-  let yer;
-  if (sv.startsWith("yeni:")) {
-    const g = deger("f-gunad"), t = deger("f-tarih");
-    if (!g && !t) return uyar("Yeni gün için gün adı ya da tarih yaz.");
-    yer = { bolum: sv.slice(5), g: g || "Gün", t: t || "?" };
-  } else yer = gunSecenek[+sv];
+  const tarihsiz = document.getElementById("f-tarihsiz").checked;
+  let tarih = tarihsiz ? null : deger("f-tarih") || null, bitis = tarihsiz ? null : deger("f-bitis") || null;
+  if (!tarihsiz && !tarih) return uyar("Tarih seç ya da “Tarihi belli değil”i işaretle.");
+  if (bitis && bitis <= tarih) bitis = null;
+  const bul = form.id ? S.isler.find(x => x.id === form.id) : null;
   const veri = {
-    ...yer, baslik, detay: deger("f-detay"),
+    baslik, detay: deger("f-detay"), tarih, bitis,
+    ay: tarih ? null : (bul?.tarih ? bul.tarih.slice(0, 7) : bul?.ay || secAy),
     etiket: deger("f-etiket").split(",").map(x => x.trim()).filter(Boolean),
     acil: document.getElementById("f-acil").checked,
     bekle: document.getElementById("f-bekle").checked ? 1 : 0,
   };
-  const id = form.id;
   form = null;
-  if (id) degistir({ t: "is", id, veri });
+  const hedef = { ...veri };
+  haftaAc(haftaAnahtari(hedef));
+  const hedefAy = isAy(hedef);
+  bilgi = hedefAy !== secAy ? { metin: `“${baslik}” ${ek(AYLAR[+hedefAy.slice(5) - 1], "e")} eklendi.`, ay: hedefAy } : null;
+  if (bul) degistir({ t: "is", id: bul.id, veri });
   else degistir({ t: "is", id: yeniId("i"), yeni: true, veri: { ...veri, done: false } });
+}
+
+function devret(){
+  const i = S.isler.find(x => x.id === form.id); if (!i) return formKapat();
+  const yeni = document.getElementById("d-tarih").value;
+  if (!yeni) { document.getElementById("d-uyari").textContent = "Yeni tarihi seç."; return; }
+  let bitis = null;
+  if (i.tarih && i.bitis) {
+    const sure = Math.round((tarihOku(i.bitis) - tarihOku(i.tarih)) / 864e5);
+    bitis = iso(gunEkle(tarihOku(yeni), sure));
+  }
+  const nereden = i.tarih ? ek(kisaTarih(i.tarih), "den") : ek(AYLAR[+i.ay.slice(5) - 1], "den");
+  const veri = { tarih: yeni, bitis, ay: null, done: false, devir: nereden };
+  form = null;
+  haftaAc(iso(pazartesi(tarihOku(yeni))));
+  const hedefAy = yeni.slice(0, 7);
+  bilgi = { metin: `“${i.baslik}” ${ek(kisaTarih(yeni), "e")} devredildi.`, ay: hedefAy };
+  degistir({ t: "is", id: i.id, veri });
 }
 
 app.addEventListener("change", e => {
@@ -447,6 +585,7 @@ app.addEventListener("submit", async e => {
     return;
   }
   if (e.target.id === "isform") return isKaydet();
+  if (e.target.id === "devretform") return devret();
   if (e.target.id === "bkform") {
     const v = id => document.getElementById(id).value.trim();
     const kim = v("b-kim");
@@ -454,16 +593,33 @@ app.addEventListener("submit", async e => {
     const id = form.id, veri = { kim, ne: v("b-ne"), son: v("b-son") };
     form = null;
     if (id) degistir({ t: "bk", id, veri });
-    else degistir({ t: "bk", id: yeniId("b"), yeni: true, veri: { ...veri, geldi: false } });
+    else degistir({ t: "bk", id: yeniId("b"), yeni: true, veri: { ...veri, ay: secAy, geldi: false } });
   }
 });
 
 app.addEventListener("click", e => {
+  const hb = e.target.closest("[data-hafta]");
+  if (hb) {
+    const k = hb.dataset.hafta;
+    if (acik.has(k)) acik.delete(k); else acik.add(k);
+    depo(K_ACIK, JSON.stringify([...acik].slice(-40)));
+    if (form?.hafta === k) form = null;
+    return ciz();
+  }
+  const ay = e.target.closest("[data-ay]");
+  if (ay) { secAy = ay.dataset.ay; form = null; bilgi = null; return formKapat(); }
+  const dt = e.target.closest("[data-devir-tarih]");
+  if (dt) { document.getElementById("d-tarih").value = dt.dataset.devirTarih; return; }
   const ey = e.target.closest("[data-eylem]");
   if (ey) {
     const d = ey.dataset;
-    if (d.eylem === "isekle") { form = { tur: "is", id: null, bolum: d.bolum }; ciz(); document.getElementById("f-baslik")?.focus(); }
+    bilgi = null;
+    if (d.eylem === "isekle") {
+      form = { tur: "is", id: null, hafta: ey.closest(".hafta").querySelector("[data-hafta]").dataset.hafta, tarih: d.tarih || null };
+      ciz(); document.getElementById("f-baslik")?.focus();
+    }
     else if (d.eylem === "duzenle") { form = { tur: "is", id: d.id }; ciz(); document.getElementById("f-baslik")?.focus(); }
+    else if (d.eylem === "devret") { form = { tur: "devret", id: d.id }; ciz(); }
     else if (d.eylem === "vazgec") formKapat();
     else if (d.eylem === "issil") { const id = form.id; form = null; degistir({ t: "issil", id }); }
     else if (d.eylem === "bkduzenle") { form = { tur: "bk", id: d.id }; ciz(); document.getElementById("b-kim")?.focus(); }
@@ -494,10 +650,10 @@ async function guncelMi(){
 if (new URLSearchParams(location.search).has("v")) history.replaceState(null, "", location.pathname);
 
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { guncelMi(); yokla(); gonder(); } });
-setInterval(guncelMi, 60000);
-guncelMi();
 window.addEventListener("online", () => gonder());
 setInterval(yokla, 4000);
+setInterval(guncelMi, 60000);
+guncelMi();
 
 if (sifre) {
   app.innerHTML = `<div class="giris"><span class="kas">Yayın akışı</span><p>Açılıyor…</p></div>`;
