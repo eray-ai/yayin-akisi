@@ -52,13 +52,14 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 
 /* beklenenler */
 .liste{display:grid}
-.bk{display:grid;grid-template-columns:22px 1fr auto auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--cizgi)}
+.bk{display:grid;grid-template-columns:44px 1fr;align-items:start;border-top:1px solid var(--cizgi)}
 .bk:first-child{border-top:0}
-.bk .tik{appearance:none;background:none;border:0;padding:0;cursor:pointer;display:grid;place-items:center;align-self:center}
-.bk .tik span{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--amber)}
+.bk .tik{appearance:none;background:none;border:0;padding:0;margin-left:-11px;cursor:pointer;display:grid;place-items:center;min-height:48px;touch-action:manipulation}
+.bk .bkmetin{appearance:none;background:none;border:0;padding:12px 0;text-align:left;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline;min-width:0;touch-action:manipulation}
+.bk .tik span{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--amber)}
 .bk.geldi .tik span{background:var(--yesil);border-color:var(--yesil)}
 .bk .kim{font-weight:500}
-.bk .ne{color:var(--soluk);font-size:14px}
+.bk .ne{color:var(--soluk);font-size:14px;grid-column:1/-1}
 .bk .son{font-size:12px;color:var(--amber)}
 .bk.geldi .kim{color:var(--soluk);text-decoration:line-through}
 .bk.geldi .son{color:var(--yesil)}
@@ -71,8 +72,10 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 .tarih .t{font-size:15px}
 .gun.bugun .g{color:var(--kiremit);font-weight:600}
 .isler{display:grid;gap:12px}
-.is{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start}
-.is input{appearance:none;margin:2px 0 0;width:18px;height:18px;border:1.5px solid var(--soluk);border-radius:50%;cursor:pointer;display:grid;place-content:center;background:transparent}
+.is{display:grid;grid-template-columns:44px 1fr;align-items:start}
+.tikalan{display:grid;place-items:start center;margin:-10px 0 -10px -13px;padding:12px 0;cursor:pointer;touch-action:manipulation}
+.metin{touch-action:manipulation}
+.is input{appearance:none;margin:0;width:20px;height:20px;border:1.5px solid var(--soluk);border-radius:50%;cursor:pointer;display:grid;place-content:center;background:transparent}
 .is input::after{content:"";width:8px;height:4px;border-left:1.5px solid var(--zemin);border-bottom:1.5px solid var(--zemin);transform:rotate(-45deg) translate(1px,-1px);opacity:0}
 .is input:checked{background:var(--yesil);border-color:var(--yesil)}
 .is input:checked::after{opacity:1}
@@ -95,7 +98,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 .form{display:grid;gap:12px;padding:14px;margin:6px 0;background:var(--yuzey);border:1px solid var(--cizgi);border-radius:10px}
 .ikili{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .alan{display:grid;gap:4px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--soluk)}
-.form input[type=text],.form select,.form textarea{font:inherit;font-size:15px;color:var(--murekkep);background:var(--zemin);border:1px solid var(--cizgi);border-radius:7px;padding:7px 9px;width:100%;text-transform:none;letter-spacing:0}
+.form input[type=text],.form select,.form textarea{font:inherit;font-size:16px;color:var(--murekkep);background:var(--zemin);border:1px solid var(--cizgi);border-radius:7px;padding:7px 9px;width:100%;text-transform:none;letter-spacing:0}
 .form textarea{min-height:56px;resize:vertical}
 .secim{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px}
 .secim label{display:flex;align-items:center;gap:6px;cursor:pointer}
@@ -109,7 +112,6 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
   .gun{grid-template-columns:1fr;gap:8px}
   .tarih{grid-auto-flow:column;justify-content:start;gap:8px;align-items:baseline}
   .ikili{grid-template-columns:1fr}
-  .bk .ne{grid-column:2/-1;grid-row:2}
   .durum{margin-left:0;width:100%}
 }
 @media (prefers-reduced-motion:reduce){.cubuk i{transition:none}}
@@ -281,7 +283,7 @@ function etiketler(i){
 function isSatiri(i){
   if (form?.tur === "is" && form.id === i.id) return formIs();
   return `<div class="is ${i.done ? "bitti" : ""}">
-    <input type="checkbox" id="is-${i.id}" data-is="${i.id}" ${i.done ? "checked" : ""} aria-label="${esc(i.baslik)} bitti">
+    <label class="tikalan"><input type="checkbox" id="is-${i.id}" data-is="${i.id}" ${i.done ? "checked" : ""} aria-label="${esc(i.baslik)} bitti"></label>
     <button type="button" class="metin" data-eylem="duzenle" data-id="${i.id}">
       <span class="baslik">${esc(i.baslik)}</span>${i.detay ? `<span class="detay">${esc(i.detay)}</span>` : ""}${etiketler(i)}
     </button>
@@ -330,16 +332,19 @@ function formIs(){
 }
 
 function formBk(){
+  const b = form.id ? S.bekleyenler.find(x => x.id === form.id) : null;
+  const v = b || { kim: "", ne: "", son: "" };
   return `<form class="form" id="bkform" autocomplete="off">
     <div class="ikili">
-      <label class="alan">Beklenen<input type="text" id="b-kim" placeholder="Örn. Karadağ tarihleri"></label>
-      <label class="alan">Son gün<input type="text" id="b-son" placeholder="Örn. 17 Eyl"></label>
+      <label class="alan">Beklenen<input type="text" id="b-kim" value="${esc(v.kim)}" placeholder="Örn. Karadağ tarihleri"></label>
+      <label class="alan">Son gün<input type="text" id="b-son" value="${esc(v.son)}" placeholder="Örn. 17 Eyl"></label>
     </div>
-    <label class="alan">Kimden / not<input type="text" id="b-ne" placeholder="Örn. Onur gönderecek"></label>
+    <label class="alan">Kimden / not<input type="text" id="b-ne" value="${esc(v.ne)}" placeholder="Örn. Onur gönderecek"></label>
     <div class="alt">
-      <button type="submit" class="birincil">Ekle</button>
+      <button type="submit" class="birincil">${b ? "Kaydet" : "Ekle"}</button>
       <button type="button" class="ikincil" data-eylem="vazgec">Vazgeç</button>
       <span class="uyari" id="b-uyari" role="alert"></span>
+      ${b ? `<button type="button" class="ikincil sil" data-eylem="bksil" data-id="${b.id}">Sil</button>` : ""}
     </div>
   </form>`;
 }
@@ -364,15 +369,16 @@ function ciz(){
   <section>
     <h2><span>Beklenenler</span></h2>
     <div class="liste">${S.bekleyenler.map(b => `
-      <div class="bk ${b.geldi ? "geldi" : ""}">
+      ${form?.tur === "bk" && form.id === b.id ? formBk() : `<div class="bk ${b.geldi ? "geldi" : ""}">
         <button type="button" class="tik" data-bk="${b.id}" id="bk-${b.id}" aria-pressed="${b.geldi}" aria-label="${esc(b.kim)} geldi"><span></span></button>
-        <span class="kim">${esc(b.kim)}</span>
-        <span class="son mono">${b.geldi ? "geldi" : esc(b.son)}</span>
-        <button type="button" class="ikincil" data-eylem="bksil" data-id="${b.id}" aria-label="${esc(b.kim)} satırını sil" style="padding:0 4px">×</button>
-        ${b.ne ? `<span class="ne" style="grid-column:2/-1">${esc(b.ne)}</span>` : ""}
-      </div>`).join("")}
+        <button type="button" class="bkmetin" data-eylem="bkduzenle" data-id="${b.id}">
+          <span class="kim">${esc(b.kim)}</span>
+          <span class="son mono">${b.geldi ? "geldi" : esc(b.son)}</span>
+          ${b.ne ? `<span class="ne">${esc(b.ne)}</span>` : ""}
+        </button>
+      </div>`}`).join("")}
     </div>
-    ${form?.tur === "bk" ? formBk() : `<button type="button" class="ekle" data-eylem="bkekle">+ Beklenen ekle</button>`}
+    ${form?.tur === "bk" && !form.id ? formBk() : `<button type="button" class="ekle" data-eylem="bkekle">+ Beklenen ekle</button>`}
   </section>
 
   ${S.bolumler.map(b => `
@@ -443,8 +449,10 @@ app.addEventListener("submit", async e => {
     const v = id => document.getElementById(id).value.trim();
     const kim = v("b-kim");
     if (!kim) { document.getElementById("b-uyari").textContent = "Neyin beklendiğini yaz."; return; }
+    const id = form.id, veri = { kim, ne: v("b-ne"), son: v("b-son") };
     form = null;
-    degistir({ t: "bk", id: yeniId("b"), yeni: true, veri: { kim, ne: v("b-ne"), son: v("b-son"), geldi: false } });
+    if (id) degistir({ t: "bk", id, veri });
+    else degistir({ t: "bk", id: yeniId("b"), yeni: true, veri: { ...veri, geldi: false } });
   }
 });
 
@@ -456,8 +464,9 @@ app.addEventListener("click", e => {
     else if (d.eylem === "duzenle") { form = { tur: "is", id: d.id }; ciz(); document.getElementById("f-baslik")?.focus(); }
     else if (d.eylem === "vazgec") formKapat();
     else if (d.eylem === "issil") { const id = form.id; form = null; degistir({ t: "issil", id }); }
-    else if (d.eylem === "bkekle") { form = { tur: "bk" }; ciz(); document.getElementById("b-kim")?.focus(); }
-    else if (d.eylem === "bksil") degistir({ t: "bksil", id: d.id });
+    else if (d.eylem === "bkduzenle") { form = { tur: "bk", id: d.id }; ciz(); document.getElementById("b-kim")?.focus(); }
+    else if (d.eylem === "bkekle") { form = { tur: "bk", id: null }; ciz(); document.getElementById("b-kim")?.focus(); }
+    else if (d.eylem === "bksil") { form = null; degistir({ t: "bksil", id: d.id }); }
     else if (d.eylem === "cikis") cikis();
     return;
   }
