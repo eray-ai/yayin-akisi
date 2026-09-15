@@ -130,6 +130,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
+const SURUM = "20260915104931";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk";
@@ -476,7 +477,21 @@ app.addEventListener("click", e => {
   document.getElementById("bk-" + b.id)?.focus();
 });
 
-document.addEventListener("visibilitychange", () => { if (!document.hidden) { yokla(); gonder(); } });
+/* Tarayıcı eski sayfayı önbellekte tutarsa yeni sürümü kendisi yükler (şifre ve bekleyen tikler korunur). */
+async function guncelMi(){
+  if (form || gonderiliyor || kuyruk().length) return;
+  try {
+    const r = await fetch("surum.txt?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    const yeni = (await r.text()).trim();
+    if (yeni && yeni !== SURUM) location.replace(location.pathname + "?v=" + encodeURIComponent(yeni));
+  } catch {}
+}
+if (new URLSearchParams(location.search).has("v")) history.replaceState(null, "", location.pathname);
+
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { guncelMi(); yokla(); gonder(); } });
+setInterval(guncelMi, 60000);
+guncelMi();
 window.addEventListener("online", () => gonder());
 setInterval(yokla, 4000);
 
