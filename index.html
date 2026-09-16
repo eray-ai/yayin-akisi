@@ -165,7 +165,7 @@ h2 .mono{font-weight:400;letter-spacing:0;text-transform:none}
 <body>
 <main class="sayfa" id="app"></main>
 <script>
-const SURUM = "20260916114442";
+const SURUM = "20260916151837";
 const SUPA = "https://qthlfkudzqkswhzipazd.supabase.co";
 const ANAHTAR = "sb_publishable_k5iOBRf8W7zUCSqK9HVxkg_3uH6KmI-";
 const K_SIFRE = "akis-sifre", K_KUYRUK = "akis-kuyruk", K_ACIK = "akis-acik-haftalar";
@@ -488,8 +488,21 @@ function ciz(){
     const esle = () => { document.getElementById("f-tarihler").hidden = tz.checked; };
     tz.addEventListener("change", esle); esle();
   }
-  document.querySelector('.ay[aria-current="true"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  /* Ay şeridini yalnız yatayda ortala; scrollIntoView sayfayı da en üste kaydırıyordu. */
+  const ayEl = document.querySelector('.ay[aria-current="true"]'), serit = ayEl?.parentElement;
+  if (ayEl && serit) serit.scrollLeft = ayEl.offsetLeft - (serit.clientWidth - ayEl.offsetWidth) / 2;
+  if (konumBekliyor != null) { const y = konumBekliyor; konumBekliyor = null; requestAnimationFrame(() => scrollTo(0, y)); }
 }
+
+/* Yenileyince kaldığın yerden devam et: veri geç geldiği için tarayıcı konumu kendi hatırlayamıyor. */
+let konumBekliyor = null;
+try { history.scrollRestoration = "manual"; konumBekliyor = +sessionStorage.getItem("akis-konum") || null; } catch {}
+let konumZaman = 0;
+addEventListener("scroll", () => {
+  clearTimeout(konumZaman);
+  konumZaman = setTimeout(() => { try { sessionStorage.setItem("akis-konum", Math.round(scrollY)); } catch {} }, 150);
+}, { passive: true });
+addEventListener("pagehide", () => { try { sessionStorage.setItem("akis-konum", Math.round(scrollY)); } catch {} });
 
 function formIs(){
   const bul = form.id ? S.isler.find(x => x.id === form.id) : null;
@@ -608,7 +621,7 @@ function devret(){
 app.addEventListener("change", e => {
   const id = e.target.dataset?.is; if (!id) return;
   degistir({ t: "is", id, veri: { done: e.target.checked } });
-  document.getElementById("is-" + id)?.focus();
+  document.getElementById("is-" + id)?.focus({ preventScroll: true });
 });
 
 app.addEventListener("submit", async e => {
@@ -668,7 +681,7 @@ app.addEventListener("click", e => {
   const btn = e.target.closest("[data-bk]"); if (!btn) return;
   const b = S.bekleyenler.find(x => x.id === btn.dataset.bk); if (!b) return;
   degistir({ t: "bk", id: b.id, veri: { geldi: !b.geldi } });
-  document.getElementById("bk-" + b.id)?.focus();
+  document.getElementById("bk-" + b.id)?.focus({ preventScroll: true });
 });
 
 /* Tarayıcı eski sayfayı önbellekte tutarsa yeni sürümü kendisi yükler (şifre ve bekleyen tikler korunur). */
